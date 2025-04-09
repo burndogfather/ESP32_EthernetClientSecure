@@ -51,7 +51,6 @@ public:
 	int read(uint8_t *buf, size_t size);
 	void flush() {}
 	void stop();
-	bool getHostByName(const char* host, IPAddress &result);
 	uint8_t connected();
 	int lastError(char *buf, const size_t size);
 	void setInsecure(); // Don't validate the chain, just accept whatever is given.  VERY INSECURE!
