@@ -19,6 +19,7 @@ protected:
 	int _lastError = 0;
 	int _peek = -1;
 	int _timeout;
+	bool _connected = false;
 	bool _use_insecure;
 	const char *_CA_cert;
 	const char *_cert;
