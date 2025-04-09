@@ -1,3 +1,23 @@
+/*
+  EthernetClientSecure.cpp - Client Secure class for ESP32
+  Copyright (c) 2016 Hristo Gochkov  All right reserved.
+  Additions Copyright (C) 2017 Evandro Luis Copercini.
+
+  This library is free software; you can redistribute it and/or
+  modify it under the terms of the GNU Lesser General Public
+  License as published by the Free Software Foundation; either
+  version 2.1 of the License, or (at your option) any later version.
+
+  This library is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  Lesser General Public License for more details.
+
+  You should have received a copy of the GNU Lesser General Public
+  License along with this library; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
+
 #include "EthernetClientSecure.h"
 #include "esp_crt_bundle.h"
 #include <lwip/sockets.h>
@@ -7,6 +27,8 @@
 #undef connect
 #undef write
 #undef read
+
+
 
 
 EthernetClientSecure::EthernetClientSecure()
@@ -78,6 +100,25 @@ void EthernetClientSecure::stop()
     stop_ssl_socket(sslclient, _CA_cert, _cert, _private_key);
 }
 
+bool EthernetClientSecure::getHostByName(const char* host, IPAddress &result) {
+    struct addrinfo hints;
+    struct addrinfo *res = nullptr;
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET; // IPv4 only
+
+    int err = getaddrinfo(host, NULL, &hints, &res);
+    if (err != 0 || res == nullptr) {
+        return false;
+    }
+
+    struct sockaddr_in *addr = (struct sockaddr_in *)res->ai_addr;
+    result = IPAddress(ntohl(addr->sin_addr.s_addr));
+
+    freeaddrinfo(res);
+    return true;
+}
+
 int EthernetClientSecure::connect(IPAddress ip, uint16_t port)
 {
     if (_pskIdent && _psKey)
@@ -110,7 +151,7 @@ int EthernetClientSecure::connect(IPAddress ip, uint16_t port, const char *CA_ce
 int EthernetClientSecure::connect(const char *host, uint16_t port, const char *CA_cert, const char *cert, const char *private_key)
 {
     IPAddress address;
-    if (!Ethernet.hostByName(host, address))
+    if (!getHostByName(host, address))
         return 0;
 
     return connect(address, port, host, CA_cert, cert, private_key);
@@ -137,7 +178,7 @@ int EthernetClientSecure::connect(const char *host, uint16_t port, const char *p
     log_v("start_ssl_client with PSK");
 
     IPAddress address;
-    if (!Ethernet.hostByName(host, address))
+    if (!getHostByName(host, address))
         return 0;
 
     int ret = start_ssl_client(sslclient, address, port, host, _timeout, NULL, false, NULL, NULL, pskIdent, psKey, _use_insecure, _alpn_protos);
@@ -361,12 +402,16 @@ int EthernetClientSecure::setTimeout(uint32_t seconds)
         struct timeval tv;
         tv.tv_sec = seconds;
         tv.tv_usec = 0;
-        if(setSocketOption(SO_RCVTIMEO, (char *)&tv, sizeof(struct timeval)) < 0) {
+
+        int fd = sslclient->socket;
+        if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(tv)) < 0) {
             return -1;
         }
-        return setSocketOption(SO_SNDTIMEO, (char *)&tv, sizeof(struct timeval));
-    }
-    else {
+        if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tv, sizeof(tv)) < 0) {
+            return -1;
+        }
+        return 0;
+    } else {
         return 0;
     }
 }
@@ -375,3 +420,4 @@ int EthernetClientSecure::fd() const
 {
     return sslclient->socket;
 }
+

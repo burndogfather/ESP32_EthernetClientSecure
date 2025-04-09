@@ -18,8 +18,8 @@ protected:
  
 	int _lastError = 0;
 	int _peek = -1;
+	bool _connected;
 	int _timeout;
-	bool _connected = false;
 	bool _use_insecure;
 	const char *_CA_cert;
 	const char *_cert;
@@ -51,6 +51,7 @@ public:
 	int read(uint8_t *buf, size_t size);
 	void flush() {}
 	void stop();
+	bool getHostByName(const char* host, IPAddress &result);
 	uint8_t connected();
 	int lastError(char *buf, const size_t size);
 	void setInsecure(); // Don't validate the chain, just accept whatever is given.  VERY INSECURE!
